@@ -97,16 +97,22 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: Skia-Windows-Release-x64
+        path: skia/
 
     - name: Run ls
       run: ls
+
+    - name: Install Dependencies
+      shell: bash
+      run: choco install ninja
 
     - name: Generating Ninja Files
       shell: bash
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLAF_BACKEND=skia -DSKIA_DIR=..\..\Skia-Windows-Release-x64 -DSKIA_LIBRARY_DIR=..\..\Skia-Windows-Release-x64\out\Release-x64 -G Ninja ..
+        call "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLAF_BACKEND=skia -DSKIA_DIR=..\..\skia -DSKIA_LIBRARY_DIR=..\..\skia\out\Release-x64 -G Ninja ..
 
     - name: Compiling
       run: ninja aseprite
