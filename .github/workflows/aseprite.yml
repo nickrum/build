@@ -12,7 +12,6 @@ jobs:
         repository: 'aseprite/skia'
 
     - name: Install Dependencies
-      shell: bash
       run: |
         choco install llvm
         choco install zip
@@ -25,7 +24,7 @@ jobs:
     - name: Sync Deps
       run: python tools/git-sync-deps
 
-    - name: Generating Ninja Files
+    - name: Generate Ninja Files
       shell: bash
       run: |
         export is_debug=false
@@ -34,10 +33,10 @@ jobs:
         export gn_flags="$gn_flags extra_cflags=[\"-MT\"]"
         gn gen out/Release-x64 --args="is_debug=$is_debug is_official_build=$is_official skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_sfntly=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"x64\" $gn_flags"
 
-    - name: Compiling
+    - name: Compile
       run: ninja -C out/Release-x64 skia modules
 
-    - name: Copying Files
+    - name: Copy Files
       shell: bash
       run: |
         export dst=Skia-Windows-Release-x64
@@ -77,7 +76,7 @@ jobs:
           third_party/externals/zlib/*.h \
           $dst
 
-    - name: Uploading Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v2
       with:
         name: Skia-Windows-Release-x64
@@ -93,31 +92,26 @@ jobs:
         repository: 'aseprite/aseprite'
         submodules: 'recursive'
 
-    - name: Downloading Skia
+    - name: Download Skia
       uses: actions/download-artifact@v2
       with:
         name: Skia-Windows-Release-x64
         path: skia/
 
-    - name: Run ls
-      run: ls
-
     - name: Install Dependencies
-      shell: bash
       run: choco install ninja
 
-    - name: Generating Ninja Files
-      shell: bash
+    - name: Generate Ninja Files
       run: |
         mkdir build
         cd build
         call "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
         cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLAF_BACKEND=skia -DSKIA_DIR=..\..\skia -DSKIA_LIBRARY_DIR=..\..\skia\out\Release-x64 -G Ninja ..
 
-    - name: Compiling
+    - name: Compile
       run: ninja aseprite
 
-    - name: Copying Files
+    - name: Copy Files
       shell: bash
       run: |
         export dst=Aseprite-Windows-Release-x64
@@ -125,7 +119,7 @@ jobs:
         mkdir $dst
         cp -R --parents build/* $dst
 
-    - name: Uploading Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v2
       with:
         name: Aseprite-Windows-Release-x64
