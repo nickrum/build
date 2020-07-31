@@ -3,11 +3,124 @@ name: Build
 on: workflow_dispatch
 
 jobs:
-  build:
+  skia-build:
     runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        repository: 'aseprite/skia'
 
-    - name: Run a one-line script
-      run: echo Hello, world!
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        choco install llvm
+        choco install zip
+
+    - name: Download depot_tools
+      run: |
+        git clone 'https://chromium.googlesource.com/chromium/tools/depot_tools.git'
+        echo "::add-path::${PWD}/depot_tools"
+
+    - name: Sync Deps
+      run: python tools/git-sync-deps
+
+    - name: Generating Ninja Files
+      shell: bash
+      run: |
+        export is_debug=false
+        export is_official=true
+        export gn_flags='win_vc="C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC" win_toolchain_version="15.0" win_sdk="C:\\Program Files (x86)\\Windows Kits\\10" win_sdk_version="10.0.18362.0" cc="clang" cxx="clang++" clang_win="C:\Program Files\LLVM" clang_win_version="9.0.0"'
+        export gn_flags="$gn_flags extra_cflags=[\"-MT\"]"
+        gn gen out/Release-x64 --args="is_debug=$is_debug is_official_build=$is_official skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_sfntly=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"x64\" $gn_flags"
+
+    - name: Compiling
+      run: ninja -C out/Release-x64 skia modules
+
+    - name: Copying Files
+      shell: bash
+      run: |
+        export dst=Skia-Windows-Release-x64
+        mkdir $dst
+        cp -R --parents \
+          out/Release-x64/*.lib \
+          include \
+          modules/particles/include/*.h \
+          modules/skottie/include/*.h \
+          modules/skparagraph/include/*.h \
+          modules/skplaintexteditor/include/*.h \
+          modules/skresources/include/*.h \
+          modules/sksg/include/*.h \
+          modules/skshaper/include/*.h \
+          src/gpu/gl/*.h \
+          third_party/externals/angle2/LICENSE \
+          third_party/externals/angle2/include \
+          third_party/externals/freetype/docs/FTL.TXT \
+          third_party/externals/freetype/docs/GPLv2.TXT \
+          third_party/externals/freetype/docs/LICENSE.TXT \
+          third_party/externals/freetype/include \
+          third_party/externals/libpng/LICENSE \
+          third_party/externals/libpng/*.h \
+          third_party/externals/libwebp/COPYING \
+          third_party/externals/libwebp/PATENTS \
+          third_party/externals/libwebp/src/dec/*.h \
+          third_party/externals/libwebp/src/dsp/*.h \
+          third_party/externals/libwebp/src/enc/*.h \
+          third_party/externals/libwebp/src/mux/*.h \
+          third_party/externals/libwebp/src/utils/*.h \
+          third_party/externals/libwebp/src/webp/*.h \
+          third_party/externals/harfbuzz/COPYING \
+          third_party/externals/harfbuzz/src/*.h \
+          third_party/externals/swiftshader/LICENSE.txt \
+          third_party/externals/swiftshader/include \
+          third_party/externals/zlib/LICENSE \
+          third_party/externals/zlib/*.h \
+          $dst
+
+    - name: Uploading Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Skia-Windows-Release-x64
+        path: Skia-Windows-Release-x64
+
+  aseprite-build:
+    needs: skia-build
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: 'aseprite/aseprite'
+        submodules: 'recursive'
+
+    - name: Downloading Skia
+      uses: actions/download-artifact@v2
+      with:
+        name: Skia-Windows-Release-x64
+
+    - name: Run ls
+      run: ls
+
+    - name: Generating Ninja Files
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLAF_BACKEND=skia -DSKIA_DIR=..\..\Skia-Windows-Release-x64 -DSKIA_LIBRARY_DIR=..\..\Skia-Windows-Release-x64\out\Release-x64 -G Ninja ..
+
+    - name: Compiling
+      run: ninja aseprite
+
+    - name: Copying Files
+      shell: bash
+      run: |
+        export dst=Aseprite-Windows-Release-x64
+        cd ..
+        mkdir $dst
+        cp -R --parents build/* $dst
+
+    - name: Uploading Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Aseprite-Windows-Release-x64
+        path: Aseprite-Windows-Release-x64
