@@ -120,7 +120,7 @@ jobs:
       run: |
         export dst=Aseprite-Windows-Release-x64
         mkdir $dst
-        cp -R --parents build/* $dst
+        cp -R build/bin/* $dst
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
